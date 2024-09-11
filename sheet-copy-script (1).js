@@ -1,83 +1,201 @@
-function copyFilteredDataBetweenSheets() {
+function inputpivot() {
   const ss = SpreadsheetApp.getActiveSpreadsheet();
-  const masterSheet = ss.getSheetByName("masterSheet");
-  const psSheet = ss.getSheetByName("psSheet");
-  
-  const headerRange = masterSheet.getRange(6, 1, 1, masterSheet.getLastColumn());
-  const header = headerRange.getValues()[0];
-  
-  const projectNameIndex = header.indexOf("案件名2");
-  const woIdIndex = header.indexOf("WO-ID");
-  const dateIndex = header.indexOf("日付"); // 日付列のインデックスを取得
-  
-  if (projectNameIndex === -1 || woIdIndex === -1 || dateIndex === -1) {
-    throw new Error("必要な列が見つかりません。");
+  const sourceSheet = ss.getSheetByName("3GSS_マスターファイル_V1.0");
+  const targetSheet = ss.getSheetByName("週次報告集計 のコピー 2");
+
+  const sourceData = sourceSheet.getDataRange().getValues();
+  const targetData = targetSheet.getDataRange().getValues();
+
+  const headers = sourceData[5]; // 6行目がヘッダー行
+  const colIndexes = {
+    hColumn: headers.indexOf("局舎名"),
+    baColumn: headers.indexOf("撤去_WOID"),
+    bzColumn: headers.indexOf("週次ピボット"),
+    bwColumn: headers.indexOf("撤去予定月"),
+    ankenName2Column: headers.indexOf("案件名２"),
+    acColumn: headers.indexOf("実地局回線完了日")
+  };
+
+  const removalTypes = ['PSAX撤去', 'MURS撤去', 'SHDSL撤去'];
+  const results = {};
+
+  removalTypes.forEach(removalType => {
+    results[removalType] = processRemovalType(removalType, sourceData, targetData, colIndexes);
+  });
+
+  // 結果をシートに書き込み
+  writeResultsToSheet(targetData, results, targetSheet);
+
+  // ログ出力
+  logResults(results);
+}
+
+function processRemovalType(removalType, sourceData, targetData, colIndexes) {
+  const monthCounts = {
+    completed: {}, planned: {}, tentative: {}, selfApplied: {}, possibleRemoval: {}
+  };
+  const uniqueCombinations = {
+    completed: new Set(), planned: new Set(), tentative: new Set(),
+    selfApplied: new Set(), possibleRemoval: new Set()
+  };
+  const logMessages = [];
+
+  // ターゲットシートの日付行（71行目）を取得し、日付列のインデックスを特定
+  const dateRow = targetData[70];
+  const dateColumns = {};
+  for (let i = 6; i <= 17; i++) {
+    if (dateRow[i]) {
+      const formattedDateString = formatDate(dateRow[i]);
+      dateColumns[formattedDateString] = i;
+      Object.keys(monthCounts).forEach(key => {
+        monthCounts[key][formattedDateString] = 0;
+      });
+    }
   }
-  
-  // masterSheetのフィルター処理
-  const filterMaster = masterSheet.getFilter();
-  if (filterMaster) {
-    filterMaster.remove();
+
+  // 撤去タイプでフィルターをかける処理
+  const removalData = sourceData.filter((row, index) => 
+    index > 5 && row[colIndexes.ankenName2Column] === removalType
+  );
+
+  // データ処理
+  removalData.forEach(row => {
+    const bzColumnValue = row[colIndexes.bzColumn];
+    const category = getCategoryFromBzValue(bzColumnValue);
+    if (!category) return;
+
+    const combinationKey = `${row[colIndexes.hColumn]}_${row[colIndexes.baColumn]}`;
+    uniqueCombinations[category].add(combinationKey);
+
+    const rawDate = category === 'possibleRemoval' ? row[colIndexes.acColumn] : row[colIndexes.bwColumn];
+    processDate(rawDate, category, monthCounts, logMessages);
+  });
+
+  return { monthCounts, uniqueCombinations, logMessages, dateColumns, totalProcessed: removalData.length };
+}
+
+function formatDate(dateValue) {
+  if (dateValue instanceof Date) {
+    if (isNaN(dateValue.getTime())) return null;
+    return `${dateValue.getFullYear().toString().slice(-2)}/${(dateValue.getMonth() + 1).toString().padStart(2, '0')}`;
+  } else if (typeof dateValue === 'string') {
+    const parts = dateValue.split('/');
+    if (parts.length >= 2) {
+      return `${parts[0].slice(-2)}/${parts[1].padStart(2, '0')}`;
+    }
   }
-  const rangeMaster = masterSheet.getRange(6, 1, masterSheet.getLastRow() - 5, masterSheet.getLastColumn());
-  rangeMaster.createFilter();
-  
-  const data = masterSheet.getRange(7, 1, masterSheet.getLastRow() - 6, masterSheet.getLastColumn()).getValues();
-  
-  const filteredData = data.filter(row => row[projectNameIndex].toString().includes("PSAX"));
-  
-  // psSheetの処理
-  const lastRow = psSheet.getLastRow();
-  const lastColumn = psSheet.getLastColumn();
-  if (lastRow > 6 && lastColumn > 0) {
-    psSheet.getRange(7, 1, lastRow - 6, lastColumn).clear({contentsOnly: true, skipFilteredRows: true});
-  }
-  
-  const targetHeaderRange = psSheet.getRange(6, 1, 1, header.length);
-  headerRange.copyTo(targetHeaderRange, SpreadsheetApp.CopyPasteType.PASTE_FORMAT);
-  
-  if (filteredData.length > 0) {
-    psSheet.getRange(7, 1, filteredData.length, filteredData[0].length).setValues(filteredData);
-  }
-  
-  // psSheetのフィルター処理
-  const filterPs = psSheet.getFilter();
-  if (filterPs) {
-    filterPs.remove();
-  }
-  const rangePs = psSheet.getRange(6, 1, Math.max(2, psSheet.getLastRow() - 5), psSheet.getLastColumn());
-  rangePs.createFilter();
-  
-  // WO-ID列を基準に昇順で並び替え
-  const range = psSheet.getRange(7, 1, psSheet.getLastRow() - 6, psSheet.getLastColumn());
-  range.sort({column: woIdIndex + 1, ascending: true});
-  
-  // 重複チェック列を追加
-  const duplicateCheckIndex = header.length;
-  psSheet.getRange(6, duplicateCheckIndex + 1).setValue("重複チェック");
-  
-  // 重複チェックと日付列の空白チェック
-  const psData = psSheet.getRange(7, 1, psSheet.getLastRow() - 6, psSheet.getLastColumn()).getValues();
-  const duplicateChecks = [];
-  const hiddenRows = [];
-  
-  for (let i = 0; i < psData.length; i++) {
-    // 重複チェック
-    if (i === 0 || psData[i][woIdIndex] !== psData[i-1][woIdIndex]) {
-      duplicateChecks.push(["○"]);
+  return null;
+}
+
+function getCategoryFromBzValue(bzValue) {
+  const categoryMap = {
+    "N検完了": 'completed',
+    "N検予定": 'planned',
+    "仮定": 'tentative',
+    "撤去自前申請": 'selfApplied',
+    "撤去可能ビル": 'possibleRemoval'
+  };
+  return categoryMap[bzValue];
+}
+
+function processDate(rawDate, category, monthCounts, logMessages) {
+  if (rawDate instanceof Date || typeof rawDate === 'string') {
+    const formattedDate = formatDate(rawDate);
+    if (formattedDate && formattedDate.match(/^\d{2}\/\d{2}$/)) {
+      if (formattedDate in monthCounts[category]) {
+        monthCounts[category][formattedDate]++;
+      } else {
+        logMessages.push(`警告: ${formattedDate} は有効な月のリストにございません。rawDate: ${rawDate}`);
+      }
     } else {
-      duplicateChecks.push(["✕"]);
+      logMessages.push(`警告: 無効な日付形式 "${rawDate}" が見つかりました。フォーマット後: ${formattedDate}`);
     }
-    
-    // 日付列の空白チェック
-    if (psData[i][dateIndex] === "") {
-      hiddenRows.push(i + 7); // 7を加えて実際の行番号に調整
-    }
+  } else if (rawDate === undefined) {
+    logMessages.push(`警告: 日付が未定義です。カテゴリー: ${category}`);
+  } else {
+    logMessages.push(`警告: 無効な日付値 "${rawDate}" が見つかりました。タイプ: ${typeof rawDate}`);
   }
-  
-  // 重複チェック結果を書き込み
-  psSheet.getRange(7, duplicateCheckIndex + 1, duplicateChecks.length, 1).setValues(duplicateChecks);
-  
-  // 日付が空白の行を非表示に
-  psSheet.hideRows(hiddenRows);
+}
+
+function writeResultsToSheet(targetData, results, targetSheet) {
+  const patterns = [
+    { suffix: '単月撤去可能ビル', key: 'possibleRemoval' },
+    { suffix: '単月撤去自前申請', key: 'selfApplied' },
+    { suffix: '単月N検完了', key: 'completed' },
+    { suffix: '単月N検予定', key: 'planned' },
+    { suffix: '単月仮予定', key: 'tentative' }
+  ];
+
+  Object.entries(results).forEach(([removalType, data]) => {
+    patterns.forEach(pattern => {
+      let rowPrefix;
+      if (removalType === 'MURS撤去') {
+        rowPrefix = 'MU-RS';
+      } else {
+        rowPrefix = removalType.split('撤去')[0];
+      }
+      const rowName = `${rowPrefix}${pattern.suffix}`;
+      const targetRow = targetData.findIndex(row => row[4] === rowName) + 1;
+      if (targetRow === 0) {
+        console.log(`エラー: targetSheetに列名"${rowName}"の行が見つかりませんでした。`);
+      } else {
+        Object.entries(data.monthCounts[pattern.key]).forEach(([dateString, count]) => {
+          const col = data.dateColumns[dateString] + 1;
+          targetSheet.getRange(targetRow, col).setValue(count);
+        });
+        console.log(`${rowName}のカウント結果をtargetSheetに入力しました。`);
+      }
+    });
+  });
+}
+
+function logResults(results) {
+  console.log("\n=== 処理結果のサマリー ===\n");
+
+  const categoryNames = {
+    possibleRemoval: '撤去可能ビル',
+    selfApplied: '撤去自前申請',
+    completed: 'N検完了',
+    planned: 'N検予定',
+    tentative: '仮予定'
+  };
+
+  const categoryOrder = ['possibleRemoval', 'selfApplied', 'completed', 'planned', 'tentative'];
+
+  Object.entries(results).forEach(([removalType, data]) => {
+    const displayType = removalType === 'MURS撤去' ? 'MU-RS撤去' : removalType;
+    console.log(`\n${displayType}の結果:`);
+
+    console.log("\n1. 月別カウント結果:");
+    categoryOrder.forEach(category => {
+      const counts = data.monthCounts[category];
+      console.log(`\n  ${categoryNames[category]}:`);
+      Object.entries(counts)
+        .sort(([a], [b]) => a.localeCompare(b))
+        .forEach(([month, count]) => {
+          console.log(`    ${month}: ${count}件`);
+        });
+    });
+
+    console.log("\n2. 全体の処理行数:", data.totalProcessed);
+
+    console.log("\n3. カテゴリー別ユニークな組み合わせ数:");
+    categoryOrder.forEach(category => {
+      console.log(`  ${categoryNames[category]}: ${data.uniqueCombinations[category].size}件`);
+    });
+
+    if (data.logMessages.length > 0) {
+      console.log("\n4. 警告・情報メッセージ:");
+      const undefinedCount = data.logMessages.filter(msg => msg.includes('日付が未定義です')).length;
+      console.log(`  未定義の日付: ${undefinedCount}件`);
+      
+      data.logMessages.forEach((msg, index) => {
+        if (!msg.includes('日付が未定義です')) {
+          console.log(`  ${index + 1}. ${msg}`);
+        }
+      });
+    }
+  });
+
+  console.log("\n=== 処理完了 ===");
 }
