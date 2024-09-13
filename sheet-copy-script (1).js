@@ -18,9 +18,9 @@ function filterAndMoveData() {
   var dataRange = sheetA.getRange(7, 1, sheetA.getLastRow() - 6, sheetA.getLastColumn());
   var data = dataRange.getValues();
   
-  // フィルター条件に合うデータを抽出
+  // "状態"が"PSAX撤去"のデータのみを抽出
   var filteredData = data.filter(function(row) {
-    return row[colIndices.status] === "PSAX撤去" && row[colIndices.bsColumn] === "o";
+    return row[colIndices.status] === "PSAX撤去";
   });
 
   if (filteredData.length > 0) {
@@ -29,7 +29,17 @@ function filterAndMoveData() {
     sheetB.getRange(7, 1, lastRow - 6, sheetB.getLastColumn()).clear();
 
     // フィルターしたデータをBシートの7行目以降に貼り付け
-    sheetB.getRange(7, 1, filteredData.length, filteredData[0].length).setValues(filteredData);
+    var pasteRange = sheetB.getRange(7, 1, filteredData.length, filteredData[0].length);
+    pasteRange.setValues(filteredData);
+    
+    // BSカラムが"o"のものだけにフィルター
+    var filterRange = sheetB.getRange(6, 1, sheetB.getLastRow() - 5, sheetB.getLastColumn());
+    var filter = filterRange.createFilter();
+    filter.setColumnFilterCriteria(colIndices.bsColumn + 1, 
+      SpreadsheetApp.newFilterCriteria()
+      .setHiddenValues(['', 'x']) // "o"以外を非表示に
+      .build()
+    );
     
     // ソート基準カラムで昇順にソート（7行目以降）
     var sortRange = sheetB.getRange(7, 1, filteredData.length, sheetB.getLastColumn());
