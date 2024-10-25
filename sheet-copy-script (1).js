@@ -1,52 +1,30 @@
-// 新しい処理：管理番号ごとの作成者とメール送付回数を取得
-let controlNumbers = [];
-let creators = [];
-let mailCounts = [];
-let monthCounts = new Map(); // 管理番号ごとの月別カウントを保持
-let dailyChecks = new Map(); // 管理番号ごとの日次チェックを保持
+// 処理済みの管理番号を追跡するためのSetを作成
+const processedNumbers = new Set();
 
-for (let i = 1; i < data_check.length; i++) {
-  if (data_check[i][CHECK_CHK] !== "") {
-    let controlNumber = data_check[i][CHECK_NNM];
-    let creator = data_check[i][CHECK_MAK];
-    let checkDate = data_check[i][CHECK_DAY];
+for(i = 0; i < data_check.length; i++) {
+  // 文字列型で取得できるのに、再変換しないと比較ができない
+  data_check[i][CHECK_DAY] = Utilities.formatDate(new Date(data_check[i][CHECK_DAY]), 'JST', 'yyyy/MM/dd');
+  
+  if(data_check[i][CHECK_CHK] != "" && data_check[i][CHECK_DAY] == data_check[1][CHECK_DAY]) {
+    // 現在の管理番号を取得
+    const currentNumber = data_check[i][CHECK_NNM];
     
-    // 日付が正しく取得できた場合のみ処理
-    if (checkDate instanceof Date && !isNaN(checkDate)) {
-      // 年月日の文字列を作成（例: "2024-01-15"）
-      let fullDate = Utilities.formatDate(checkDate, 'Asia/Tokyo', 'yyyy-MM-dd');
-      let yearMonth = Utilities.formatDate(checkDate, 'Asia/Tokyo', 'yyyy-MM');
-      
-      // その日の最初のチェックかどうかを確認
-      let dailyKey = `${controlNumber}_${fullDate}`;
-      if (!dailyChecks.has(dailyKey)) {
-        dailyChecks.set(dailyKey, true);
+    // この管理番号がまだ処理されていない場合のみ処理を実行
+    if (!processedNumbers.has(currentNumber)) {
+      for(j = 0; j < data_targetList.length; j++) {
+        // NW構築課の振切りはGC施工管理課に送付
+        let targetDivusion = data_check[i][CHECK_DIV];
+        if(targetDivusion == "NW構築課") {
+          targetDivusion = "GC施工管理課";
+        }
         
-        let index = controlNumbers.indexOf(controlNumber);
-        if (index === -1) {
-          // 新しい管理番号の場合
-          controlNumbers.push(controlNumber);
-          creators.push(creator);
-          
-          // 月別カウントの初期化
-          monthCounts.set(controlNumber, new Set([yearMonth]));
-          mailCounts.push(1);
-        } else {
-          // 既存の管理番号の場合、その月のカウントが未登録なら追加
-          let months = monthCounts.get(controlNumber);
-          if (!months.has(yearMonth)) {
-            months.add(yearMonth);
-            monthCounts.set(controlNumber, months);
-            mailCounts[index] = months.size;
-          }
+        if(data_targetList[j][0] == targetDivusion) {
+          // 管理番号挿入
+          data_targetList[j][2] += data_check[i][CHECK_NNM] + "\n";
+          // 処理済みの管理番号を記録
+          processedNumbers.add(currentNumber);
         }
       }
     }
   }
-}
-
-// デバッグ用のログ出力
-console.log("日次チェック状況:");
-for (let [key, value] of dailyChecks) {
-  console.log(`${key}: ${value}`);
 }
