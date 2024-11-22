@@ -3,7 +3,7 @@ function transferDataFromSlidesToSheets() {
   const PRESENTATION_ID = ''; // スライドのIDを入力
   const SPREADSHEET_ID = ''; // スプレッドシートのIDを入力
   const SHEET_NAME = ''; // シート名を入力
-  const TARGET_TITLE = '3GSS GC設備撤去 進捗状況'; // 検索するスライドのタイトルに含まれる文字列
+  const TARGET_TITLE = '★3GSS GC設備撤去 進捗状況（更新版）★'; // 検索するスライドのタイトル
   
   try {
     // スライドとスプレッドシートを取得
@@ -21,8 +21,8 @@ function transferDataFromSlidesToSheets() {
       for (const shape of shapes) {
         // シェイプにテキストがある場合、タイトルを検索
         if (shape.getText) {
-          const text = shape.getText().asString();
-          if (text.includes(TARGET_TITLE)) {
+          const text = shape.getText().asString().trim();
+          if (text === TARGET_TITLE) {
             targetSlide = slide;
             break;
           }
@@ -66,7 +66,7 @@ function transferDataFromSlidesToSheets() {
     
   } catch (error) {
     Logger.log('エラーが発生しました: ' + error);
-    throw error; // エラーを再スロー
+    throw error;
   }
 }
 
