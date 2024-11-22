@@ -1,64 +1,84 @@
-function countTotalCells() {
-  const ss = SpreadsheetApp.getActiveSpreadsheet();
-  const sheets = ss.getSheets();
-  let totalCells = 0;
-  let result = [];
+function transferDataFromSlidesToSheets() {
+  // スライドとスプレッドシートのIDを設定
+  const PRESENTATION_ID = ''; // スライドのIDを入力
+  const SPREADSHEET_ID = ''; // スプレッドシートのIDを入力
+  const SHEET_NAME = ''; // シート名を入力
+  const TARGET_TITLE = '3GSS GC設備撤去 進捗状況'; // 検索するスライドのタイトルに含まれる文字列
   
-  // シート毎の全セル数を計算
-  for (const sheet of sheets) {
-    const numRows = sheet.getMaxRows();
-    const numCols = sheet.getMaxColumns();
-    const sheetCells = numRows * numCols;
+  try {
+    // スライドとスプレッドシートを取得
+    const presentation = SlidesApp.openById(PRESENTATION_ID);
+    const spreadsheet = SpreadsheetApp.openById(SPREADSHEET_ID);
+    const sheet = spreadsheet.getSheetByName(SHEET_NAME);
     
-    totalCells += sheetCells;
-    result.push({
-      sheetName: sheet.getName(),
-      rows: numRows,
-      cols: numCols,
-      cells: sheetCells
-    });
+    // スライドを検索
+    const slides = presentation.getSlides();
+    let targetSlide = null;
+    
+    for (const slide of slides) {
+      // スライド内のすべてのシェイプを取得
+      const shapes = slide.getShapes();
+      for (const shape of shapes) {
+        // シェイプにテキストがある場合、タイトルを検索
+        if (shape.getText) {
+          const text = shape.getText().asString();
+          if (text.includes(TARGET_TITLE)) {
+            targetSlide = slide;
+            break;
+          }
+        }
+      }
+      if (targetSlide) break;
+    }
+    
+    if (!targetSlide) {
+      throw new Error('対象のスライドが見つかりませんでした: ' + TARGET_TITLE);
+    }
+    
+    // テーブルを取得（最初のテーブルを想定）
+    const tables = targetSlide.getTables();
+    if (tables.length === 0) {
+      throw new Error('テーブルが見つかりませんでした');
+    }
+    const table = tables[0];
+    
+    // データを格納する2次元配列
+    const data = [];
+    
+    // テーブルの各行をループ
+    for (let i = 0; i < table.getNumRows(); i++) {
+      const row = [];
+      const tableRow = table.getRow(i);
+      
+      for (let j = 0; j < table.getNumColumns(); j++) {
+        const cell = tableRow.getCell(j);
+        const value = cell.getText().asString().trim();
+        row.push(value);
+      }
+      data.push(row);
+    }
+    
+    // メインデータ部分の更新（1行目から8行目まで）
+    const mainDataRange = sheet.getRange(1, 1, 8, data[0].length);
+    mainDataRange.setValues(data.slice(0, 8));
+    
+    Logger.log('データ転記が完了しました');
+    
+  } catch (error) {
+    Logger.log('エラーが発生しました: ' + error);
+    throw error; // エラーを再スロー
   }
-  
-  // スプレッドシートの制限値
-  const CELL_LIMIT = 10000000; // 1000万セル
-  const remainingCells = CELL_LIMIT - totalCells;
-  
-  // 結果をログに出力
-  Logger.log('=== セル数（空白セル含む） ===');
-  Logger.log(`総セル数: ${totalCells.toLocaleString()} セル`);
-  Logger.log(`残りセル数: ${remainingCells.toLocaleString()} セル`);
-  Logger.log('\nシート別セル数:');
-  result.forEach(item => {
-    Logger.log(`${item.sheetName}: ${item.cells.toLocaleString()} セル (${item.rows} 行 × ${item.cols} 列)`);
-  });
-  
-  return {
-    totalCells: totalCells,
-    remainingCells: remainingCells,
-    sheetDetails: result
-  };
 }
 
-// UI付きで実行するための関数
-function showTotalCellCount() {
-  const result = countTotalCells();
-  const ui = SpreadsheetApp.getUi();
-  
-  let message = `総セル数: ${result.totalCells.toLocaleString()} セル\n`;
-  message += `残りセル数: ${result.remainingCells.toLocaleString()} セル\n\n`;
-  message += 'シート別セル数:\n';
-  result.sheetDetails.forEach(item => {
-    message += `${item.sheetName}: ${item.cells.toLocaleString()} セル`;
-    message += ` (${item.rows} 行 × ${item.cols} 列)\n`;
-  });
-  
-  ui.alert('セル数カウント結果', message, ui.ButtonSet.OK);
+// トリガーを設定する関数
+function createTimeDrivenTrigger() {
+  ScriptApp.newTrigger('transferDataFromSlidesToSheets')
+    .timeBased()
+    .everyHours(1)
+    .create();
 }
 
-// メニューに追加するための関数
-function onOpen() {
-  const ui = SpreadsheetApp.getUi();
-  ui.createMenu('カスタムツール')
-    .addItem('全セル数をカウント', 'showTotalCellCount')
-    .addToUi();
+// 手動実行用の関数
+function manualRun() {
+  transferDataFromSlidesToSheets();
 }
