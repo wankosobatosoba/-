@@ -1,300 +1,186 @@
-/************ Google Apps Script (GAS) チートシート ************/
-
-// ===== スプレッドシートの基本操作 =====
-
-// アクティブなスプレッドシートを取得
-const ss = SpreadsheetApp.getActiveSpreadsheet();
-
-// IDからスプレッドシートを取得
-const ss = SpreadsheetApp.openById('スプレッドシートID');
-
-// URLからスプレッドシートを取得
-const ss = SpreadsheetApp.openByUrl('スプレッドシートURL');
-
-// 新規スプレッドシート作成
-const ss = SpreadsheetApp.create('新規スプレッドシート名');
-
-// アクティブなシートを取得
-const sheet = SpreadsheetApp.getActiveSheet();
-
-// シート名からシートを取得
-const sheet = ss.getSheetByName('シート名');
-
-// インデックスからシートを取得（0から始まる）
-const sheet = ss.getSheets()[0];
-
-// 新規シート作成
-const newSheet = ss.insertSheet('新規シート名');
-
-// シートのコピー
-const copiedSheet = sheet.copyTo(ss).setName('コピーシート名');
-
-// ===== セルと範囲の操作 =====
-
-// 単一セルの値を取得
-const value = sheet.getRange('A1').getValue();
-// または
-const value = sheet.getRange(1, 1).getValue();
-
-// 範囲の値を取得（2次元配列で返される）
-const values = sheet.getRange('A1:C3').getValues();
-// または
-const values = sheet.getRange(1, 1, 3, 3).getValues(); // 開始行, 開始列, 行数, 列数
-
-// 列全体を取得
-const columnValues = sheet.getRange('A:A').getValues();
-
-// 行全体を取得
-const rowValues = sheet.getRange('1:1').getValues();
-
-// データが存在する最終行を取得
-const lastRow = sheet.getLastRow();
-
-// データが存在する最終列を取得
-const lastColumn = sheet.getLastColumn();
-
-// 単一セルに値を設定
-sheet.getRange('A1').setValue('テキスト');
-
-// 範囲に値を設定（2次元配列）
-const data = [
-  ['名前', '年齢', '都市'],
-  ['田中', 25, '東京'],
-  ['鈴木', 30, '大阪']
-];
-sheet.getRange('A1:C3').setValues(data);
-
-// 数式を設定
-sheet.getRange('D1').setFormula('=SUM(A1:C1)');
-
-// 書式を設定
-sheet.getRange('A1').setFontWeight('bold').setBackground('#f3f3f3');
-
-// セルの値をクリア
-sheet.getRange('A1').clearContent();
-
-// セルの書式をクリア
-sheet.getRange('A1').clearFormat();
-
-// セルのすべてをクリア（値、書式、検証など）
-sheet.getRange('A1').clear();
-
-// 行を削除
-sheet.deleteRow(1);
-
-// 複数行を削除
-sheet.deleteRows(1, 3); // 開始行, 削除する行数
-
-// 列を削除
-sheet.deleteColumn(1);
-
-// 複数列を削除
-sheet.deleteColumns(1, 3); // 開始列, 削除する列数
-
-// ===== データの処理 =====
-
-// フィルターを作成
-const filter = sheet.getRange('A1:D10').createFilter();
-
-// フィルター条件を設定（例：B列が「東京」のみ表示）
-const filterCriteria = SpreadsheetApp.newFilterCriteria()
-  .whenTextEqualTo('東京')
-  .build();
-filter.setColumnFilterCriteria(2, filterCriteria); // 2は列のインデックス（B列）
-
-// フィルターを削除
-filter.remove();
-
-// 範囲をソート（A列で昇順）
-sheet.getRange('A2:D10').sort(1); // 1はA列を表す
-
-// 複数条件でソート（A列で昇順、B列で降順）
-sheet.getRange('A2:D10').sort([
-  {column: 1, ascending: true},
-  {column: 2, ascending: false}
-]);
-
-// ===== 制御構文 =====
-
-// 基本的なif文
-if (条件) {
-  // 条件が真の場合の処理
-} else if (別の条件) {
-  // 別の条件が真の場合の処理
-} else {
-  // すべての条件が偽の場合の処理
-}
-
-// 例
-const value = sheet.getRange('A1').getValue();
-if (value > 100) {
-  console.log('100より大きい');
-} else if (value > 50) {
-  console.log('50より大きく100以下');
-} else {
-  console.log('50以下');
-}
-
-// 三項演算子
-const result = (条件) ? '真の場合の値' : '偽の場合の値';
-
-// 基本的なfor文
-for (let i = 0; i < 10; i++) {
-  console.log(i);
-}
-
-// 配列のforEachループ
-const array = [1, 2, 3, 4, 5];
-array.forEach(function(item, index) {
-  console.log(item, index);
-});
-
-// for...ofループ（ES6）
-for (const item of array) {
-  console.log(item);
-}
-
-// for...inループ（オブジェクトのプロパティに対して）
-const obj = {a: 1, b: 2, c: 3};
-for (const key in obj) {
-  console.log(key, obj[key]);
-}
-
-// 2次元配列のループ（スプレッドシートデータの処理に便利）
-const values = sheet.getRange('A1:C3').getValues();
-for (let i = 0; i < values.length; i++) {
-  for (let j = 0; j < values[i].length; j++) {
-    console.log(values[i][j]);
-  }
-}
-
-// while文
-let i = 0;
-while (i < 10) {
-  console.log(i);
-  i++;
-}
-
-// do...while文
-let j = 0;
-do {
-  console.log(j);
-  j++;
-} while (j < 10);
-
-// ===== 関数と変数 =====
-
-// 関数の定義
-function myFunction(param1, param2) {
-  // 処理
-  return 結果;
-}
-
-// アロー関数（ES6）
-const myArrowFunction = (param1, param2) => {
-  // 処理
-  return 結果;
-};
-
-// 変数の定義
-let variable1 = '変更可能な変数';
-const constant1 = '変更不可能な定数';
-var oldVariable = '古い変数宣言方法（避けるべき）';
-
-// ===== 日付と時間 =====
-
-// 現在の日時を取得
-const now = new Date();
-
-// 特定の日時を作成
-const date = new Date(2023, 0, 1); // 2023年1月1日（月は0から始まる）
-
-// Utilities.formatDateを使って日付をフォーマット
-const formattedDate = Utilities.formatDate(new Date(), 'Asia/Tokyo', 'yyyy/MM/dd HH:mm:ss');
-
-// セルに日付を設定
-sheet.getRange('A1').setValue(new Date());
-
-// ===== UI操作とユーザー対話 =====
-
-// アラートを表示
-SpreadsheetApp.getUi().alert('メッセージ');
-
-// 確認ダイアログを表示
-const response = SpreadsheetApp.getUi().alert('確認', '続行しますか？', SpreadsheetApp.getUi().ButtonSet.YES_NO);
-if (response == SpreadsheetApp.getUi().Button.YES) {
-  // YESが選択された場合の処理
-}
-
-// プロンプトでユーザー入力を受け取る
-const input = SpreadsheetApp.getUi().prompt('入力', '名前を入力してください', SpreadsheetApp.getUi().ButtonSet.OK_CANCEL);
-if (input.getSelectedButton() == SpreadsheetApp.getUi().Button.OK) {
-  const text = input.getResponseText();
-  // 入力されたテキストで処理
-}
-
-// カスタムダイアログを表示（HTMLファイルが必要）
-const html = HtmlService.createHtmlOutputFromFile('Page')
-  .setWidth(400)
-  .setHeight(300);
-SpreadsheetApp.getUi().showModalDialog(html, 'カスタムダイアログ');
-
-// ===== トリガーの設定 =====
-
-// 時間ベースのトリガーを設定
-function createTimeDrivenTriggers() {
-  // 毎日午前9時に実行
-  ScriptApp.newTrigger('myFunction')
-    .timeBased()
-    .atHour(9)
-    .everyDays(1)
-    .create();
+/**
+ * 大規模データ処理のためのGASスクリプト
+ * ソーススプレッドシートから特定の列(A, BA-BD)だけを抽出し、
+ * A列でソートした後、ターゲットシートに貼り付ける
+ */
+function processLargeDataset() {
+  // スプレッドシートの取得 (URLは適宜変更してください)
+  const sourceSpreadsheet = SpreadsheetApp.openById('ソーススプレッドシートのID');
+  const targetSpreadsheet = SpreadsheetApp.openById('ターゲットスプレッドシートのID');
   
-  // 1時間ごとに実行
-  ScriptApp.newTrigger('myFunction')
-    .timeBased()
-    .everyHours(1)
-    .create();
+  // シートの取得
+  const sourceSheet = sourceSpreadsheet.getSheetByName('シート名');
+  const targetSheet = targetSpreadsheet.getSheetByName('シート名');
+  
+  // 処理開始のログ
+  console.log('データ処理を開始します');
+  console.time('処理時間');
+  
+  // データの範囲を取得 (3行目から30000行まで、全列)
+  const dataRange = sourceSheet.getRange(3, 1, sourceSheet.getLastRow() - 2, sourceSheet.getLastColumn());
+  const values = dataRange.getValues();
+  
+  // 必要な列のインデックスを定義
+  // A列は0、BA列は52、BB列は53、BC列は54、BD列は55 (0ベースのインデックス)
+  const colIndices = [0, 52, 53, 54, 55];
+  
+  // 必要な列だけを抽出
+  const extractedData = [];
+  values.forEach(row => {
+    const newRow = [];
+    colIndices.forEach(idx => {
+      newRow.push(row[idx]);
+    });
+    extractedData.push(newRow);
+  });
+  
+  // A列（抽出後のデータでは0番目）でソート
+  extractedData.sort((a, b) => {
+    // 数値の場合
+    if (typeof a[0] === 'number' && typeof b[0] === 'number') {
+      return a[0] - b[0];
+    }
+    // 文字列の場合
+    return String(a[0]).localeCompare(String(b[0]));
+  });
+  
+  // A列を除去（インデックス1以降を取得）
+  const finalData = extractedData.map(row => row.slice(1));
+  
+  // ターゲットシートのデータが既に存在する場合はクリア
+  const targetLastRow = targetSheet.getLastRow();
+  if (targetLastRow > 0) {
+    targetSheet.getRange(1, 53, targetLastRow, 4).clearContent();
+  }
+  
+  // データを分割して書き込み (一度に書き込むデータが多すぎるとエラーになるため)
+  const CHUNK_SIZE = 1000;
+  for (let i = 0; i < finalData.length; i += CHUNK_SIZE) {
+    const chunk = finalData.slice(i, i + CHUNK_SIZE);
+    targetSheet.getRange(i + 1, 53, chunk.length, 4).setValues(chunk);
+    
+    // 進捗ログ
+    console.log(`${i + chunk.length}/${finalData.length} 行処理完了`);
+    
+    // 処理が重くならないように少し待機
+    Utilities.sleep(100);
+  }
+  
+  // 処理終了のログ
+  console.timeEnd('処理時間');
+  console.log('データ処理が完了しました');
 }
 
-// スプレッドシートの変更時に実行するトリガー
-function createOnEditTrigger() {
-  ScriptApp.newTrigger('myFunction')
-    .forSpreadsheet(SpreadsheetApp.getActive())
-    .onEdit()
-    .create();
+/**
+ * 軽量化バージョン: スプレッドシートAPIを使用
+ * より高速な処理が必要な場合に使用
+ */
+function processLargeDatasetOptimized() {
+  // スプレッドシートIDの設定
+  const sourceId = 'ソーススプレッドシートのID';
+  const targetId = 'ターゲットスプレッドシートのID';
+  const sourceSheetName = 'シート名';
+  const targetSheetName = 'シート名';
+  
+  // 処理開始のログ
+  console.log('最適化されたデータ処理を開始します');
+  console.time('処理時間');
+  
+  // Sheets APIを使用して必要な列だけを一度に取得
+  // A列を取得
+  const aColumnRange = `${sourceSheetName}!A3:A`;
+  const aColumnData = Sheets.Spreadsheets.Values.get(sourceId, aColumnRange).values || [];
+  
+  // BA-BD列を取得
+  const baToFdRange = `${sourceSheetName}!BA3:BD`;
+  const baToFdData = Sheets.Spreadsheets.Values.get(sourceId, baToFdRange).values || [];
+  
+  // 二つのデータを結合
+  const combinedData = [];
+  for (let i = 0; i < aColumnData.length; i++) {
+    if (i < baToFdData.length) {
+      combinedData.push([
+        aColumnData[i][0], 
+        ...(baToFdData[i] || [])
+      ]);
+    }
+  }
+  
+  // A列（インデックス0）でソート
+  combinedData.sort((a, b) => {
+    if (typeof a[0] === 'number' && typeof b[0] === 'number') {
+      return a[0] - b[0];
+    }
+    return String(a[0]).localeCompare(String(b[0]));
+  });
+  
+  // A列を除去
+  const finalData = combinedData.map(row => row.slice(1));
+  
+  // データを一括で書き込み (Sheets APIを使用)
+  Sheets.Spreadsheets.Values.update(
+    {
+      values: finalData
+    },
+    targetId,
+    `${targetSheetName}!BA1:BD${finalData.length}`,
+    {
+      valueInputOption: 'USER_ENTERED'
+    }
+  );
+  
+  // 処理終了のログ
+  console.timeEnd('処理時間');
+  console.log('最適化されたデータ処理が完了しました');
 }
 
-// ===== エラー処理 =====
-
-// try-catch文でエラーをキャッチ
-try {
-  // エラーが発生する可能性のあるコード
-} catch (e) {
-  // エラー発生時の処理
-  console.error('エラーが発生しました: ' + e.message);
-  SpreadsheetApp.getUi().alert('エラー: ' + e.message);
-} finally {
-  // エラーの有無にかかわらず実行される処理
+/**
+ * もっと軽量化したバージョン: バッチ処理とキャッシュを使用
+ */
+function processLargeDatasetUltraOptimized() {
+  // スプレッドシートの取得
+  const sourceSpreadsheet = SpreadsheetApp.openById('ソーススプレッドシートのID');
+  const targetSpreadsheet = SpreadsheetApp.openById('ターゲットスプレッドシートのID');
+  
+  const sourceSheet = sourceSpreadsheet.getSheetByName('シート名');
+  const targetSheet = targetSpreadsheet.getSheetByName('シート名');
+  
+  console.log('超最適化されたデータ処理を開始します');
+  console.time('処理時間');
+  
+  // まずA列だけを取得してソート用のインデックスを作成
+  const aColumnRange = sourceSheet.getRange(3, 1, sourceSheet.getLastRow() - 2, 1);
+  const aColumnValues = aColumnRange.getValues();
+  
+  // ソート用のインデックス配列を作成 (値と元の行番号のペア)
+  const sortIndices = aColumnValues.map((value, index) => ({ value: value[0], originalIndex: index }));
+  
+  // インデックス配列をA列の値でソート
+  sortIndices.sort((a, b) => {
+    if (typeof a.value === 'number' && typeof b.value === 'number') {
+      return a.value - b.value;
+    }
+    return String(a.value).localeCompare(String(b.value));
+  });
+  
+  // BA-BD列を取得
+  const baToFdRange = sourceSheet.getRange(3, 53, sourceSheet.getLastRow() - 2, 4);
+  const baToFdValues = baToFdRange.getValues();
+  
+  // ソートされたインデックスに基づいて新しいデータセットを作成
+  const sortedData = sortIndices.map(item => baToFdValues[item.originalIndex]);
+  
+  // ターゲットシートに書き込む
+  const CHUNK_SIZE = 1000;
+  for (let i = 0; i < sortedData.length; i += CHUNK_SIZE) {
+    const chunk = sortedData.slice(i, i + CHUNK_SIZE);
+    targetSheet.getRange(i + 1, 53, chunk.length, 4).setValues(chunk);
+    
+    // 進捗ログと軽いスリープ
+    console.log(`${i + chunk.length}/${sortedData.length} 行処理完了`);
+    Utilities.sleep(50);
+  }
+  
+  console.timeEnd('処理時間');
+  console.log('超最適化されたデータ処理が完了しました');
 }
-
-// ===== 外部サービスとの連携 =====
-
-// HTTPリクエストを送信
-const response = UrlFetchApp.fetch('https://api.example.com/data');
-const data = JSON.parse(response.getContentText());
-
-// POSTリクエストを送信
-const options = {
-  'method': 'post',
-  'contentType': 'application/json',
-  'payload': JSON.stringify({key: 'value'})
-};
-const response = UrlFetchApp.fetch('https://api.example.com/data', options);
-
-// Gmail操作
-const threads = GmailApp.search('label:inbox');
-const messages = GmailApp.getMessagesForThreads(threads);
-
-// Gmailで新規メール送信
-GmailApp.sendEmail('recipient@example.com', '件名', '本文');
